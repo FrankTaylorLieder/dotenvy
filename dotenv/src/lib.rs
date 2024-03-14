@@ -331,6 +331,41 @@ pub fn dotenv() -> Result<PathBuf> {
     Ok(path)
 }
 
+/// Make the presence of the *.env* file optional.
+///
+/// If found, load normally like [`dotenv`].
+///
+/// If not found, then the existing process environment is left as-is and
+/// no error is returned. Returns `None` indicating no file was loaded.
+///
+/// If a *.env* file is found, it is loaded as normal, e.g. reporting errors if the files are
+/// malformed.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// dotenvy::dotenv_optional()?;
+/// #     Ok(())
+/// # }
+/// ```
+
+pub fn dotenv_optional() -> Result<Option<PathBuf>> {
+    match Finder::new().find() {
+        Ok((path, iter)) => {
+            iter.load()?;
+            Ok(Some(path))
+        }
+        Err(e) => {
+            if e.not_found() {
+                Ok(None)
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
 /// Loads all variables found in the `reader` into the environment,
 /// overriding any existing environment variables of the same name.
 ///

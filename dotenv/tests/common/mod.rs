@@ -15,6 +15,14 @@ pub fn tempdir_with_dotenv(dotenv_text: &str) -> io::Result<TempDir> {
 }
 
 #[allow(dead_code)]
+pub fn tempdir_without_dotenv() -> io::Result<TempDir> {
+    env::set_var("EXISTING", "from_env");
+    let dir = tempdir()?;
+    env::set_current_dir(dir.path())?;
+    Ok(dir)
+}
+
+#[allow(dead_code)]
 pub fn make_test_dotenv() -> io::Result<TempDir> {
     tempdir_with_dotenv("TESTKEY=test_val\nTESTKEY=test_val_overridden\nEXISTING=from_file")
 }

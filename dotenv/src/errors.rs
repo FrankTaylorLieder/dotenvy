@@ -14,6 +14,7 @@ pub enum Error {
 }
 
 impl Error {
+    /// Is this error because there was no `.env` file?
     pub fn not_found(&self) -> bool {
         if let Error::Io(ref io_error) = *self {
             return io_error.kind() == io::ErrorKind::NotFound;
