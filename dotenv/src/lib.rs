@@ -333,13 +333,10 @@ pub fn dotenv() -> Result<PathBuf> {
 
 /// Make the presence of the *.env* file optional.
 ///
-/// If found, load normally like [`dotenv`].
+/// If found, load normally like [`dotenv`]. Any errors are reported as normal.
 ///
-/// If not found, then the existing process environment is left as-is and
-/// no error is returned. Returns `None` indicating no file was loaded.
-///
-/// If a *.env* file is found, it is loaded as normal, e.g. reporting errors if the files are
-/// malformed.
+/// If not found, the existing process environment is left as-is and
+/// `None` is returned indicating no file was loaded.
 ///
 /// # Examples
 ///
