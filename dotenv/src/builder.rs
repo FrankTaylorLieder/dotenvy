@@ -86,7 +86,15 @@ impl<'a> DotenvBuilder<'a> {
         let find_result = match self.source {
             Source::Default => Finder::new().find(),
             Source::Filename(f) => Finder::new().filename(f).find(),
-            Source::Path(_p) => todo!(),
+            Source::Path(p) => match File::open(p) {
+                Err(e) => Err(Error::Io(e)),
+                Ok(f) => {
+                    let iter = Iter::new(f);
+                    let mut pb = PathBuf::new();
+                    pb.push(p);
+                    Ok((pb, iter))
+                }
+            },
             Source::Read(_r) => todo!(),
         };
 
