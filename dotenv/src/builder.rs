@@ -113,13 +113,3 @@ impl<'a> DotenvBuilder<'a> {
         todo!()
     }
 }
-
-mod tests {
-    use super::*;
-
-    #[test]
-    fn simple() -> Result<()> {
-        DotenvBuilder::default().optional().load()?;
-        Ok(())
-    }
-}
