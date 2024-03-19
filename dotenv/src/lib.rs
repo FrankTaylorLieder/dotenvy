@@ -16,6 +16,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Once;
 
+pub use crate::builder::{build, DotenvBuilder};
 pub use crate::errors::*;
 use crate::find::Finder;
 pub use crate::iter::Iter;
