@@ -115,4 +115,4 @@ fn test_builder_path() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// TODO: all iter cases, all reader cases, all path cases
+// TODO: all iter cases, all reader cases

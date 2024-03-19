@@ -82,7 +82,7 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    pub fn load(&mut self) -> Result<Option<PathBuf>> {
+    fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<Iter<File>>)> {
         let find_result = match self.source {
             Source::Default => Finder::new().find(),
             Source::Filename(f) => Finder::new().filename(f).find(),
@@ -101,23 +101,30 @@ impl<'a> DotenvBuilder<'a> {
         match find_result {
             Err(e) => {
                 if self.optional && e.not_found() {
-                    Ok(None)
+                    Ok((None, None))
                 } else {
                     Err(e)
                 }
             }
-            Ok((pb, i)) => {
+            Ok((pb, i)) => Ok((Some(pb), Some(i))),
+        }
+    }
+
+    pub fn load(&mut self) -> Result<Option<PathBuf>> {
+        match self.find_iter()? {
+            (_, None) => Ok(None),
+            (pb, Some(iter)) => {
                 if self.overryde {
-                    i.load_override()?;
+                    iter.load()?;
                 } else {
-                    i.load()?;
+                    iter.load_override()?;
                 }
-                Ok(Some(pb))
+                Ok(pb)
             }
         }
     }
 
-    pub fn iter(&mut self) -> Result<iter::Iter<File>> {
-        todo!()
+    pub fn iter(&mut self) -> Result<Option<iter::Iter<File>>> {
+        Ok(self.find_iter()?.1)
     }
 }
