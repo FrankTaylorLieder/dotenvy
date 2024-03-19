@@ -3,6 +3,7 @@
 //!
 //! This library loads environment variables from a *.env* file. This is convenient for dev environments.
 
+mod builder;
 mod errors;
 mod find;
 mod iter;
