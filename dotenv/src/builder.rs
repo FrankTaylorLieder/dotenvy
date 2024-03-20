@@ -115,9 +115,9 @@ impl<'a> DotenvBuilder<'a> {
             (_, None) => Ok(None),
             (pb, Some(iter)) => {
                 if self.overryde {
-                    iter.load()?;
-                } else {
                     iter.load_override()?;
+                } else {
+                    iter.load()?;
                 }
                 Ok(pb)
             }
