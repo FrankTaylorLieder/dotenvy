@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
 #![allow(dead_code)]
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use crate::from_filename;
@@ -24,7 +24,7 @@ enum Source<'a> {
     Default,
     Filename(&'a Path),
     Path(&'a Path),
-    Read(&'a dyn io::Read),
+    Read(&'a mut dyn io::Read),
 }
 
 pub struct DotenvBuilder<'a> {
@@ -41,6 +41,11 @@ impl<'a> Default for DotenvBuilder<'a> {
             overryde: false,
         }
     }
+}
+
+enum ConcreteIter<'a> {
+    File(Iter<File>),
+    Read(Iter<&'a mut dyn io::Read>),
 }
 
 pub fn build<'a>() -> DotenvBuilder<'a> {
@@ -64,7 +69,7 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    pub fn from_read<R>(&mut self, reader: &'a R) -> &mut DotenvBuilder<'a>
+    pub fn from_read<R>(&mut self, reader: &'a mut R) -> &mut DotenvBuilder<'a>
     where
         R: io::Read,
     {
@@ -82,20 +87,26 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<Iter<File>>)> {
+    fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<ConcreteIter>)> {
         let find_result = match self.source {
-            Source::Default => Finder::new().find(),
-            Source::Filename(f) => Finder::new().filename(f).find(),
+            Source::Default => match Finder::new().find() {
+                Err(e) => Err(e),
+                Ok((pb, i)) => Ok((Some(pb), ConcreteIter::File(i))),
+            },
+            Source::Filename(f) => match Finder::new().filename(f).find() {
+                Err(e) => Err(e),
+                Ok((pb, i)) => Ok((Some(pb), ConcreteIter::File(i))),
+            },
             Source::Path(p) => match File::open(p) {
                 Err(e) => Err(Error::Io(e)),
                 Ok(f) => {
-                    let iter = Iter::new(f);
+                    let i = Iter::new(f);
                     let mut pb = PathBuf::new();
                     pb.push(p);
-                    Ok((pb, iter))
+                    Ok((Some(pb), ConcreteIter::File(i)))
                 }
             },
-            Source::Read(_r) => todo!(),
+            Source::Read(r) => Ok((None, ConcreteIter::Read(Iter::new(r)))),
         };
 
         match find_result {
@@ -106,7 +117,7 @@ impl<'a> DotenvBuilder<'a> {
                     Err(e)
                 }
             }
-            Ok((pb, i)) => Ok((Some(pb), Some(i))),
+            Ok((pb, i)) => Ok((pb, Some(i))),
         }
     }
 
@@ -114,17 +125,45 @@ impl<'a> DotenvBuilder<'a> {
         match self.find_iter()? {
             (_, None) => Ok(None),
             (pb, Some(iter)) => {
-                if self.overryde {
-                    iter.load_override()?;
-                } else {
-                    iter.load()?;
+                match iter {
+                    ConcreteIter::File(iter) => {
+                        if self.overryde {
+                            iter.load_override()?;
+                        } else {
+                            iter.load()?;
+                        }
+                    }
+                    ConcreteIter::Read(iter) => {
+                        if self.overryde {
+                            iter.load_override()?;
+                        } else {
+                            iter.load()?;
+                        }
+                    }
                 }
                 Ok(pb)
             }
         }
     }
 
+    // pub fn load(&mut self) -> Result<Option<PathBuf>> {
+    //     match self.find_iter()? {
+    //         (_, None) => Ok(None),
+    //         (pb, Some(iter)) => {
+    //             if self.overryde {
+    //                 iter.load_override()?;
+    //             } else {
+    //                 iter.load()?;
+    //             }
+    //             Ok(pb)
+    //         }
+    //     }
+    // }
+
     pub fn iter(&mut self) -> Result<Option<iter::Iter<File>>> {
-        Ok(self.find_iter()?.1)
+        if let Source::Read(reader) = self.source {
+            return Ok(Iter::new(reader));
+        }
+        self.find_iter()?.1
     }
 }
