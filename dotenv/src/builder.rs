@@ -130,6 +130,9 @@ impl<'a> DotenvBuilder<'a> {
     }
 
     pub fn load(mut self) -> Result<Option<PathBuf>> {
+        // Note: we grab overryde here because ConcreteIter::Read(iter) has a reference with
+        // the same lifetime as the &mut self, so self becomes unavailable for calls inside the
+        // match block.
         let overryde = self.overryde;
         match self.find_iter()? {
             (_, None) => Ok(None),
