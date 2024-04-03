@@ -11,6 +11,7 @@ pub enum Error {
     LineParse(String, usize),
     Io(io::Error),
     EnvVar(env::VarError),
+    State(String),
 }
 
 impl Error {
@@ -43,6 +44,7 @@ impl fmt::Display for Error {
                 "Error parsing line: '{}', error at line index: {}",
                 line, error_index
             ),
+            Error::State(msg) => write!(fmt, "Illegal operation: {}", msg),
         }
     }
 }

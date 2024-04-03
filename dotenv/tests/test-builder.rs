@@ -181,13 +181,31 @@ fn test_load_builder_path() -> Result<(), Box<dyn Error>> {
 
 #[test]
 #[serial]
-fn test_iter_default() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_iter(|_| build().iter())?;
-    check_missing_optional_iter(|_| build().optional().iter())?;
-    check_normal_iter(|_| build().iter())?;
-    // Note: There is no override test as this is a function of the loader.
+fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
+    check_normal_load(|p| {
+        build()
+            .from_read(&mut File::open(p).expect("Provided path is missing"))
+            .load()
+    })?;
+    check_override_load(|p| {
+        build()
+            .from_read(&mut File::open(p).expect("Provided path is missing"))
+            .overryde()
+            .load()
+    })?;
 
     Ok(())
 }
 
-// TODO: all reader cases
+// #[test]
+// #[serial]
+// fn test_iter_default() -> Result<(), Box<dyn Error>> {
+//     check_missing_fails_iter(|_| build().iter())?;
+//     check_missing_optional_iter(|_| build().optional().iter())?;
+//     check_normal_iter(|_| build().iter())?;
+//     // Note: There is no override test as this is a function of the loader.
+//
+//     Ok(())
+// }
+
+// TODO: remaining iter use cases

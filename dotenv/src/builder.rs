@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 use std::fs::File;
 use std::io::{self, Read};
+use std::mem::replace;
 use std::path::{Path, PathBuf};
 
 use crate::from_filename;
@@ -25,6 +26,7 @@ enum Source<'a> {
     Filename(&'a Path),
     Path(&'a Path),
     Read(&'a mut dyn io::Read),
+    Consumed,
 }
 
 pub struct DotenvBuilder<'a> {
@@ -88,7 +90,8 @@ impl<'a> DotenvBuilder<'a> {
     }
 
     fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<ConcreteIter>)> {
-        let find_result = match self.source {
+        let source = replace(&mut self.source, Source::Consumed);
+        let find_result = match source {
             Source::Default => match Finder::new().find() {
                 Err(e) => Err(e),
                 Ok((pb, i)) => Ok((Some(pb), ConcreteIter::File(i))),
@@ -107,6 +110,7 @@ impl<'a> DotenvBuilder<'a> {
                 }
             },
             Source::Read(r) => Ok((None, ConcreteIter::Read(Iter::new(r)))),
+            Source::Consumed => Err(Error::State(String::from("Source already consumed"))),
         };
 
         match find_result {
@@ -122,19 +126,20 @@ impl<'a> DotenvBuilder<'a> {
     }
 
     pub fn load(&mut self) -> Result<Option<PathBuf>> {
+        let overryde = self.overryde;
         match self.find_iter()? {
             (_, None) => Ok(None),
             (pb, Some(iter)) => {
                 match iter {
                     ConcreteIter::File(iter) => {
-                        if self.overryde {
+                        if overryde {
                             iter.load_override()?;
                         } else {
                             iter.load()?;
                         }
                     }
                     ConcreteIter::Read(iter) => {
-                        if self.overryde {
+                        if overryde {
                             iter.load_override()?;
                         } else {
                             iter.load()?;
@@ -160,10 +165,14 @@ impl<'a> DotenvBuilder<'a> {
     //     }
     // }
 
-    pub fn iter(&mut self) -> Result<Option<iter::Iter<File>>> {
-        if let Source::Read(reader) = self.source {
-            return Ok(Iter::new(reader));
-        }
-        self.find_iter()?.1
-    }
+    // pub fn iter<R: Read>(&mut self) -> Result<Option<iter::Iter<R>>> {
+    //     if let Source::Read(reader) = self.source {
+    //         todo!() // return Ok(Some(Iter::new(reader)));
+    //     }
+    //     // Ok(self.find_iter()?.1)
+    //     match self.find_iter()?.1 {
+    //         ConcreteIter::File(f) => Ok(Some(f)),
+    //         ConcreteIter::Read(r) => todo!(), //Ok(Some(r)),
+    //     }
+    // }
 }
