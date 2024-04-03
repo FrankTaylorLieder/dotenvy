@@ -83,6 +83,22 @@ fn check_override_load(loader: InjectLoad) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn check_builder_cannot_be_reused(loader: InjectLoad) -> Result<(), Box<dyn Error>> {
+    println!("check_builder_cannot_be_reused");
+    let _ce = CleanEnv::new();
+    let dir = make_test_dotenv()?;
+
+    let mut path = env::current_dir()?;
+    path.push(".env");
+
+    assert!(loader(&path).is_err());
+
+    env::set_current_dir(dir.path().parent().unwrap())?;
+    dir.close()?;
+
+    Ok(())
+}
+
 fn check_missing_fails_iter(loader: InjectIter) -> Result<(), Box<dyn Error>> {
     println!("check_missing_fails_iter");
     let _ce = CleanEnv::new();

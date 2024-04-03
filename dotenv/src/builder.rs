@@ -20,6 +20,10 @@ use crate::{errors::*, Iter};
 // Finalisers:
 //   - load() - load into env
 //   - iter() - stream found env vars
+//
+// Note: the builder methods take a `mut DotenvBuilder`. Whilst the options pass one back, allowing
+// chaining, the finalisers don't, therefore consming the builder and preventing additional
+// finaliser calls to the same builder.
 
 enum Source<'a> {
     Default,
@@ -55,7 +59,7 @@ pub fn build<'a>() -> DotenvBuilder<'a> {
 }
 
 impl<'a> DotenvBuilder<'a> {
-    pub fn from_filename<P>(&mut self, filename: &'a P) -> &mut DotenvBuilder<'a>
+    pub fn from_filename<P>(mut self, filename: &'a P) -> Self
     where
         P: AsRef<Path> + ?Sized,
     {
@@ -63,7 +67,7 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    pub fn from_path<P>(&mut self, path: &'a P) -> &mut DotenvBuilder<'a>
+    pub fn from_path<P>(mut self, path: &'a P) -> Self
     where
         P: AsRef<Path> + ?Sized,
     {
@@ -71,7 +75,7 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    pub fn from_read<R>(&mut self, reader: &'a mut R) -> &mut DotenvBuilder<'a>
+    pub fn from_read<R>(mut self, reader: &'a mut R) -> Self
     where
         R: io::Read,
     {
@@ -79,12 +83,12 @@ impl<'a> DotenvBuilder<'a> {
         self
     }
 
-    pub fn optional(&mut self) -> &mut DotenvBuilder<'a> {
+    pub fn optional(mut self) -> Self {
         self.optional = true;
         self
     }
 
-    pub fn overryde(&mut self) -> &mut DotenvBuilder<'a> {
+    pub fn overryde(mut self) -> Self {
         self.overryde = true;
         self
     }
@@ -125,7 +129,7 @@ impl<'a> DotenvBuilder<'a> {
         }
     }
 
-    pub fn load(&mut self) -> Result<Option<PathBuf>> {
+    pub fn load(mut self) -> Result<Option<PathBuf>> {
         let overryde = self.overryde;
         match self.find_iter()? {
             (_, None) => Ok(None),
