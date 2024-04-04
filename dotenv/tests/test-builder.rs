@@ -3,7 +3,7 @@ use std::{env, error::Error, fs::File, path::PathBuf, result::Result};
 
 mod common;
 
-use dotenvy::builder2::DotenvFinalizer;
+use dotenvy::builder2::BuilderFinalizer;
 use dotenvy::*;
 
 use crate::common::*;
@@ -221,6 +221,7 @@ fn test_load_builder2_default() -> Result<(), Box<dyn Error>> {
     check_missing_optional_load(|_| builder2::dotenv().optional().load())?;
     check_normal_load(|_| builder2::dotenv().load())?;
     check_override_load(|_| builder2::dotenv().overryde().load())?;
+    check_override_load(|_| builder2::dotenv().optional().overryde().load())?;
 
     Ok(())
 }
