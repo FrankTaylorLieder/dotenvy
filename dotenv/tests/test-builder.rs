@@ -211,15 +211,35 @@ fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// #[test]
-// #[serial]
-// fn test_iter_default() -> Result<(), Box<dyn Error>> {
-//     check_missing_fails_iter(|_| build().iter())?;
-//     check_missing_optional_iter(|_| build().optional().iter())?;
-//     check_normal_iter(|_| build().iter())?;
-//     // Note: There is no override test as this is a function of the loader.
-//
-//     Ok(())
-// }
+#[test]
+#[serial]
+fn test_iter_builder_default() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_iter(|_| builder::dotenv().iter())?;
+    check_missing_optional_iter(|_| builder::dotenv().optional().iter())?;
+    check_normal_iter(|_| builder::dotenv().iter())?;
+    // Note: There is no override test as this is a function of the loader.
 
-// TODO: remaining iter use cases
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_iter_builder_filename() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_iter(|_| builder::from_filename(".env").iter())?;
+    check_missing_optional_iter(|_| builder::from_filename(".env").optional().iter())?;
+    check_normal_iter(|_| builder::from_filename(".env").iter())?;
+    // Note: There is no override test as this is a function of the loader.
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_iter_builder_path() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_iter(|p| builder::from_path(p).iter())?;
+    check_missing_optional_iter(|p| builder::from_path(p).optional().iter())?;
+    check_normal_iter(|p| builder::from_path(p).iter())?;
+    // Note: There is no override test as this is a function of the loader.
+
+    Ok(())
+}
