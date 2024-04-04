@@ -1,185 +1,166 @@
-#![allow(unused_imports)]
-#![allow(dead_code)]
 use std::fs::File;
-use std::io::{self, Read};
-use std::mem::replace;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use crate::from_filename;
-use crate::iter;
+use crate::errors::*;
 use crate::Finder;
-use crate::{errors::*, Iter};
+use crate::Iter;
 
-// Builder
-//
-// Options:
-//   - Source, one of: default (.env), from_file(filename), from_path(path), from_reader(reader)
-//   - optional()
-//   - override()
-//
-// Finalisers:
-//   - load() - load into env
-//   - iter() - stream found env vars
-//
-// Note: the builder methods take a `mut DotenvBuilder`. Whilst the options pass one back, allowing
-// chaining, the finalisers don't, therefore consming the builder and preventing additional
-// finaliser calls to the same builder.
-
-enum Source<'a> {
+#[derive(Default, Clone)]
+enum FileSourceType<'a> {
+    #[default]
     Default,
     Filename(&'a Path),
     Path(&'a Path),
-    Read(&'a mut dyn io::Read),
-    Consumed,
 }
 
-pub struct DotenvBuilder<'a> {
-    source: Source<'a>,
+#[derive(Default, Clone)]
+pub struct FileSource<'a> {
+    source: FileSourceType<'a>,
     optional: bool,
-    overryde: bool, // override is a keyword!
+}
+pub struct ReadSource<'a> {
+    reader: &'a mut dyn Read,
 }
 
-impl<'a> Default for DotenvBuilder<'a> {
-    fn default() -> Self {
-        Self {
-            source: Source::Default,
-            optional: false,
-            overryde: false,
-        }
-    }
+pub trait BuilderFinalizer<'a, I> {
+    fn load(self) -> Result<Option<PathBuf>>;
+    fn iter(self) -> Result<Option<Iter<I>>>;
 }
 
-enum ConcreteIter<'a> {
-    File(Iter<File>),
-    Read(Iter<&'a mut dyn io::Read>),
+#[derive(Default, Clone)]
+pub struct Builder2<S> {
+    source: S,
+    overryde: bool,
 }
 
-pub fn build<'a>() -> DotenvBuilder<'a> {
-    DotenvBuilder::default()
-}
-
-impl<'a> DotenvBuilder<'a> {
-    pub fn from_filename<P>(mut self, filename: &'a P) -> Self
-    where
-        P: AsRef<Path> + ?Sized,
-    {
-        self.source = Source::Filename(filename.as_ref());
-        self
-    }
-
-    pub fn from_path<P>(mut self, path: &'a P) -> Self
-    where
-        P: AsRef<Path> + ?Sized,
-    {
-        self.source = Source::Path(path.as_ref());
-        self
-    }
-
-    pub fn from_read<R>(mut self, reader: &'a mut R) -> Self
-    where
-        R: io::Read,
-    {
-        self.source = Source::Read(reader);
-        self
-    }
-
+impl<'a> Builder2<FileSource<'a>> {
     pub fn optional(mut self) -> Self {
-        self.optional = true;
+        self.source.optional = true;
         self
     }
 
-    pub fn overryde(mut self) -> Self {
-        self.overryde = true;
-        self
-    }
-
-    fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<ConcreteIter>)> {
-        let source = replace(&mut self.source, Source::Consumed);
-        let find_result = match source {
-            Source::Default => match Finder::new().find() {
-                Err(e) => Err(e),
-                Ok((pb, i)) => Ok((Some(pb), ConcreteIter::File(i))),
-            },
-            Source::Filename(f) => match Finder::new().filename(f).find() {
-                Err(e) => Err(e),
-                Ok((pb, i)) => Ok((Some(pb), ConcreteIter::File(i))),
-            },
-            Source::Path(p) => match File::open(p) {
+    fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<Iter<File>>)> {
+        let find_result = match self.source.source {
+            FileSourceType::Default => Finder::new().find(),
+            FileSourceType::Filename(f) => Finder::new().filename(f).find(),
+            FileSourceType::Path(p) => match File::open(p) {
                 Err(e) => Err(Error::Io(e)),
                 Ok(f) => {
                     let i = Iter::new(f);
                     let mut pb = PathBuf::new();
                     pb.push(p);
-                    Ok((Some(pb), ConcreteIter::File(i)))
+                    Ok((pb, i))
                 }
             },
-            Source::Read(r) => Ok((None, ConcreteIter::Read(Iter::new(r)))),
-            Source::Consumed => Err(Error::State(String::from("Source already consumed"))),
         };
 
         match find_result {
             Err(e) => {
-                if self.optional && e.not_found() {
+                if self.source.optional && e.not_found() {
                     Ok((None, None))
                 } else {
                     Err(e)
                 }
             }
-            Ok((pb, i)) => Ok((pb, Some(i))),
+            Ok((pb, i)) => Ok((Some(pb), Some(i))),
         }
     }
+}
 
-    pub fn load(mut self) -> Result<Option<PathBuf>> {
-        // Note: we grab overryde here because ConcreteIter::Read(iter) has a reference with
-        // the same lifetime as the &mut self, so self becomes unavailable for calls inside the
-        // match block.
-        let overryde = self.overryde;
-        match self.find_iter()? {
-            (_, None) => Ok(None),
-            (pb, Some(iter)) => {
-                match iter {
-                    ConcreteIter::File(iter) => {
-                        if overryde {
-                            iter.load_override()?;
-                        } else {
-                            iter.load()?;
-                        }
-                    }
-                    ConcreteIter::Read(iter) => {
-                        if overryde {
-                            iter.load_override()?;
-                        } else {
-                            iter.load()?;
-                        }
-                    }
-                }
-                Ok(pb)
+impl<'a> BuilderFinalizer<'a, File> for Builder2<FileSource<'a>> {
+    fn load(mut self) -> Result<Option<PathBuf>> {
+        let (pb, iter) = self.find_iter()?;
+
+        if let Some(iter) = iter {
+            if self.overryde {
+                iter.load_override()?;
+            } else {
+                iter.load()?;
             }
         }
+
+        Ok(pb)
     }
 
-    // pub fn load(&mut self) -> Result<Option<PathBuf>> {
-    //     match self.find_iter()? {
-    //         (_, None) => Ok(None),
-    //         (pb, Some(iter)) => {
-    //             if self.overryde {
-    //                 iter.load_override()?;
-    //             } else {
-    //                 iter.load()?;
-    //             }
-    //             Ok(pb)
-    //         }
-    //     }
-    // }
+    fn iter(mut self) -> Result<Option<Iter<File>>> {
+        let (_, iter) = self.find_iter()?;
 
-    // pub fn iter<R: Read>(&mut self) -> Result<Option<iter::Iter<R>>> {
-    //     if let Source::Read(reader) = self.source {
-    //         todo!() // return Ok(Some(Iter::new(reader)));
-    //     }
-    //     // Ok(self.find_iter()?.1)
-    //     match self.find_iter()?.1 {
-    //         ConcreteIter::File(f) => Ok(Some(f)),
-    //         ConcreteIter::Read(r) => todo!(), //Ok(Some(r)),
-    //     }
-    // }
+        Ok(iter)
+    }
+}
+
+impl<'a> Builder2<ReadSource<'a>> {}
+
+impl<'a> BuilderFinalizer<'a, &'a mut dyn Read> for Builder2<ReadSource<'a>> {
+    fn iter(self) -> Result<Option<Iter<&'a mut dyn Read>>> {
+        Ok(Some(Iter::new(self.source.reader)))
+    }
+
+    fn load(self) -> Result<Option<PathBuf>> {
+        let iter = Iter::new(self.source.reader);
+        if self.overryde {
+            iter.load_override()?;
+        } else {
+            iter.load()?;
+        }
+
+        Ok(None)
+    }
+}
+
+impl<S> Builder2<S> {
+    pub fn overryde(mut self) -> Self {
+        self.overryde = true;
+        self
+    }
+}
+
+pub fn dotenv<'a>() -> Builder2<FileSource<'a>> {
+    Builder2 {
+        source: FileSource {
+            source: FileSourceType::Default,
+            optional: false,
+        },
+
+        ..Default::default()
+    }
+}
+
+pub fn from_filename<'a, P>(filename: &'a P) -> Builder2<FileSource<'a>>
+where
+    P: AsRef<Path> + ?Sized,
+{
+    Builder2 {
+        source: FileSource {
+            source: FileSourceType::Filename(filename.as_ref()),
+            optional: false,
+        },
+
+        ..Default::default()
+    }
+}
+
+pub fn from_path<'a, P>(path: &'a P) -> Builder2<FileSource<'a>>
+where
+    P: AsRef<Path> + ?Sized,
+{
+    Builder2 {
+        source: FileSource {
+            source: FileSourceType::Path(path.as_ref()),
+            optional: false,
+        },
+
+        ..Default::default()
+    }
+}
+
+pub fn from_read<'a, R>(reader: &'a mut R) -> Builder2<ReadSource<'a>>
+where
+    R: Read,
+{
+    Builder2 {
+        source: ReadSource { reader },
+        overryde: false,
+    }
 }

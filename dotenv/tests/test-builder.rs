@@ -3,7 +3,6 @@ use std::{env, error::Error, fs::File, path::PathBuf, result::Result};
 
 mod common;
 
-use dotenvy::builder2::BuilderFinalizer;
 use dotenvy::*;
 
 use crate::common::*;
@@ -166,10 +165,11 @@ fn check_normal_iter(loader: InjectIter) -> Result<(), Box<dyn Error>> {
 #[test]
 #[serial]
 fn test_load_builder_default() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|_| build().load())?;
-    check_missing_optional_load(|_| build().optional().load())?;
-    check_normal_load(|_| build().load())?;
-    check_override_load(|_| build().overryde().load())?;
+    check_missing_fails_load(|_| builder::dotenv().load())?;
+    check_missing_optional_load(|_| builder::dotenv().optional().load())?;
+    check_normal_load(|_| builder::dotenv().load())?;
+    check_override_load(|_| builder::dotenv().overryde().load())?;
+    check_override_load(|_| builder::dotenv().optional().overryde().load())?;
 
     Ok(())
 }
@@ -177,10 +177,10 @@ fn test_load_builder_default() -> Result<(), Box<dyn Error>> {
 #[test]
 #[serial]
 fn test_load_builder_filename() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|_| build().from_filename(".env").load())?;
-    check_missing_optional_load(|_| build().from_filename(".env").optional().load())?;
-    check_normal_load(|_| build().from_filename(".env").load())?;
-    check_override_load(|_| build().from_filename(".env").overryde().load())?;
+    check_missing_fails_load(|_| builder::from_filename(".env").load())?;
+    check_missing_optional_load(|_| builder::from_filename(".env").optional().load())?;
+    check_normal_load(|_| builder::from_filename(".env").load())?;
+    check_override_load(|_| builder::from_filename(".env").overryde().load())?;
 
     Ok(())
 }
@@ -188,10 +188,10 @@ fn test_load_builder_filename() -> Result<(), Box<dyn Error>> {
 #[test]
 #[serial]
 fn test_load_builder_path() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|p| build().from_path(p).load())?;
-    check_missing_optional_load(|p| build().from_path(p).optional().load())?;
-    check_normal_load(|p| build().from_path(p).load())?;
-    check_override_load(|p| build().from_path(p).overryde().load())?;
+    check_missing_fails_load(|p| builder::from_path(p).load())?;
+    check_missing_optional_load(|p| builder::from_path(p).optional().load())?;
+    check_normal_load(|p| builder::from_path(p).load())?;
+    check_override_load(|p| builder::from_path(p).overryde().load())?;
 
     Ok(())
 }
@@ -200,62 +200,10 @@ fn test_load_builder_path() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
     check_normal_load(|p| {
-        build()
-            .from_read(&mut File::open(p).expect("Provided path is missing"))
-            .load()
+        builder::from_read(&mut File::open(p).expect("Provided path is missing")).load()
     })?;
     check_override_load(|p| {
-        build()
-            .from_read(&mut File::open(p).expect("Provided path is missing"))
-            .overryde()
-            .load()
-    })?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-fn test_load_builder2_default() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|_| builder2::dotenv().load())?;
-    check_missing_optional_load(|_| builder2::dotenv().optional().load())?;
-    check_normal_load(|_| builder2::dotenv().load())?;
-    check_override_load(|_| builder2::dotenv().overryde().load())?;
-    check_override_load(|_| builder2::dotenv().optional().overryde().load())?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-fn test_load_builder2_filename() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|_| builder2::from_filename(".env").load())?;
-    check_missing_optional_load(|_| builder2::from_filename(".env").optional().load())?;
-    check_normal_load(|_| builder2::from_filename(".env").load())?;
-    check_override_load(|_| builder2::from_filename(".env").overryde().load())?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-fn test_load_builder2_path() -> Result<(), Box<dyn Error>> {
-    check_missing_fails_load(|p| builder2::from_path(p).load())?;
-    check_missing_optional_load(|p| builder2::from_path(p).optional().load())?;
-    check_normal_load(|p| builder2::from_path(p).load())?;
-    check_override_load(|p| builder2::from_path(p).overryde().load())?;
-
-    Ok(())
-}
-
-#[test]
-#[serial]
-fn test_load_builder2_read() -> Result<(), Box<dyn Error>> {
-    check_normal_load(|p| {
-        builder2::from_read(&mut File::open(p).expect("Provided path is missing")).load()
-    })?;
-    check_override_load(|p| {
-        builder2::from_read(&mut File::open(p).expect("Provided path is missing"))
+        builder::from_read(&mut File::open(p).expect("Provided path is missing"))
             .overryde()
             .load()
     })?;
