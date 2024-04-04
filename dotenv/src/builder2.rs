@@ -22,19 +22,19 @@ enum FileSourceType<'a> {
 pub struct FileSource<'a>(FileSourceType<'a>);
 pub struct ReadSource<'a>(&'a mut dyn Read);
 
-trait DotenvFinalizer<'a, I> {
+pub trait DotenvFinalizer<'a, I> {
     fn load(self) -> Result<Option<PathBuf>>;
     fn iter(self) -> Result<Option<Iter<I>>>;
 }
 
 #[derive(Default, Clone)]
-pub struct DotenvBuilder<S> {
+pub struct DotenvBuilder2<S> {
     source: S,
     optional: bool,
     overryde: bool,
 }
 
-impl<'a> DotenvBuilder<FileSource<'a>> {
+impl<'a> DotenvBuilder2<FileSource<'a>> {
     pub fn optional(mut self) -> Self {
         self.optional = true;
         self
@@ -68,7 +68,7 @@ impl<'a> DotenvBuilder<FileSource<'a>> {
     }
 }
 
-impl<'a> DotenvFinalizer<'a, File> for DotenvBuilder<FileSource<'a>> {
+impl<'a> DotenvFinalizer<'a, File> for DotenvBuilder2<FileSource<'a>> {
     fn load(mut self) -> Result<Option<PathBuf>> {
         let (pb, iter) = self.find_iter()?;
 
@@ -90,9 +90,9 @@ impl<'a> DotenvFinalizer<'a, File> for DotenvBuilder<FileSource<'a>> {
     }
 }
 
-impl<'a> DotenvBuilder<ReadSource<'a>> {}
+impl<'a> DotenvBuilder2<ReadSource<'a>> {}
 
-impl<'a> DotenvFinalizer<'a, &'a mut dyn Read> for DotenvBuilder<ReadSource<'a>> {
+impl<'a> DotenvFinalizer<'a, &'a mut dyn Read> for DotenvBuilder2<ReadSource<'a>> {
     fn iter(self) -> Result<Option<Iter<&'a mut dyn Read>>> {
         Ok(Some(Iter::new(self.source.0)))
     }
@@ -109,48 +109,48 @@ impl<'a> DotenvFinalizer<'a, &'a mut dyn Read> for DotenvBuilder<ReadSource<'a>>
     }
 }
 
-impl<S> DotenvBuilder<S> {
+impl<S> DotenvBuilder2<S> {
     pub fn overryde(mut self) -> Self {
         self.overryde = true;
         self
     }
 }
 
-pub fn dotenv<'a>() -> DotenvBuilder<FileSource<'a>> {
-    DotenvBuilder {
+pub fn dotenv<'a>() -> DotenvBuilder2<FileSource<'a>> {
+    DotenvBuilder2 {
         source: FileSource(FileSourceType::Default),
 
         ..Default::default()
     }
 }
 
-pub fn from_filename<'a, P>(filename: &'a P) -> DotenvBuilder<FileSource<'a>>
+pub fn from_filename<'a, P>(filename: &'a P) -> DotenvBuilder2<FileSource<'a>>
 where
-    P: AsRef<Path>,
+    P: AsRef<Path> + ?Sized,
 {
-    DotenvBuilder {
+    DotenvBuilder2 {
         source: FileSource(FileSourceType::Filename(filename.as_ref())),
 
         ..Default::default()
     }
 }
 
-pub fn from_path<'a, P>(path: &'a P) -> DotenvBuilder<FileSource<'a>>
+pub fn from_path<'a, P>(path: &'a P) -> DotenvBuilder2<FileSource<'a>>
 where
-    P: AsRef<Path>,
+    P: AsRef<Path> + ?Sized,
 {
-    DotenvBuilder {
+    DotenvBuilder2 {
         source: FileSource(FileSourceType::Path(path.as_ref())),
 
         ..Default::default()
     }
 }
 
-pub fn from_read<'a, R>(reader: &'a mut R) -> DotenvBuilder<ReadSource<'a>>
+pub fn from_read<'a, R>(reader: &'a mut R) -> DotenvBuilder2<ReadSource<'a>>
 where
     R: Read,
 {
-    DotenvBuilder {
+    DotenvBuilder2 {
         source: ReadSource(reader),
         optional: false,
         overryde: false,

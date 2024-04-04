@@ -4,7 +4,7 @@
 //! This library loads environment variables from a *.env* file. This is convenient for dev environments.
 
 mod builder;
-mod builder2;
+pub mod builder2;
 mod errors;
 mod find;
 mod iter;
@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Once;
 
 pub use crate::builder::{build, DotenvBuilder};
+// pub use crate::builder2::{dotenv, from_filename, from_path, from_read, DotenvBuilder2};
 pub use crate::errors::*;
 use crate::find::Finder;
 pub use crate::iter::Iter;

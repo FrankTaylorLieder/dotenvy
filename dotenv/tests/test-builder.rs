@@ -3,6 +3,7 @@ use std::{env, error::Error, fs::File, path::PathBuf, result::Result};
 
 mod common;
 
+use dotenvy::builder2::DotenvFinalizer;
 use dotenvy::*;
 
 use crate::common::*;
@@ -206,6 +207,54 @@ fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
     check_override_load(|p| {
         build()
             .from_read(&mut File::open(p).expect("Provided path is missing"))
+            .overryde()
+            .load()
+    })?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_load_builder2_default() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_load(|_| builder2::dotenv().load())?;
+    check_missing_optional_load(|_| builder2::dotenv().optional().load())?;
+    check_normal_load(|_| builder2::dotenv().load())?;
+    check_override_load(|_| builder2::dotenv().overryde().load())?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_load_builder2_filename() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_load(|_| builder2::from_filename(".env").load())?;
+    check_missing_optional_load(|_| builder2::from_filename(".env").optional().load())?;
+    check_normal_load(|_| builder2::from_filename(".env").load())?;
+    check_override_load(|_| builder2::from_filename(".env").overryde().load())?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_load_builder2_path() -> Result<(), Box<dyn Error>> {
+    check_missing_fails_load(|p| builder2::from_path(p).load())?;
+    check_missing_optional_load(|p| builder2::from_path(p).optional().load())?;
+    check_normal_load(|p| builder2::from_path(p).load())?;
+    check_override_load(|p| builder2::from_path(p).overryde().load())?;
+
+    Ok(())
+}
+
+#[test]
+#[serial]
+fn test_load_builder2_read() -> Result<(), Box<dyn Error>> {
+    check_normal_load(|p| {
+        builder2::from_read(&mut File::open(p).expect("Provided path is missing")).load()
+    })?;
+    check_override_load(|p| {
+        builder2::from_read(&mut File::open(p).expect("Provided path is missing"))
             .overryde()
             .load()
     })?;
