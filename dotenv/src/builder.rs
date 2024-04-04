@@ -17,8 +17,9 @@ enum FileSourceType<'a> {
 #[derive(Default, Clone)]
 pub struct FileSource<'a> {
     source: FileSourceType<'a>,
-    optional: bool,
+    allow_missing: bool,
 }
+
 pub struct ReadSource<'a> {
     reader: &'a mut dyn Read,
 }
@@ -29,14 +30,14 @@ pub trait BuilderFinalizer<'a, I> {
 }
 
 #[derive(Default, Clone)]
-pub struct Builder2<S> {
+pub struct Builder<S> {
     source: S,
-    overryde: bool,
+    override_duplicates: bool,
 }
 
-impl<'a> Builder2<FileSource<'a>> {
-    pub fn optional(mut self) -> Self {
-        self.source.optional = true;
+impl<'a> Builder<FileSource<'a>> {
+    pub fn allow_missing(mut self) -> Self {
+        self.source.allow_missing = true;
         self
     }
 
@@ -57,7 +58,7 @@ impl<'a> Builder2<FileSource<'a>> {
 
         match find_result {
             Err(e) => {
-                if self.source.optional && e.not_found() {
+                if self.source.allow_missing && e.not_found() {
                     Ok((None, None))
                 } else {
                     Err(e)
@@ -68,12 +69,12 @@ impl<'a> Builder2<FileSource<'a>> {
     }
 }
 
-impl<'a> BuilderFinalizer<'a, File> for Builder2<FileSource<'a>> {
+impl<'a> BuilderFinalizer<'a, File> for Builder<FileSource<'a>> {
     fn load(mut self) -> Result<Option<PathBuf>> {
         let (pb, iter) = self.find_iter()?;
 
         if let Some(iter) = iter {
-            if self.overryde {
+            if self.override_duplicates {
                 iter.load_override()?;
             } else {
                 iter.load()?;
@@ -90,16 +91,16 @@ impl<'a> BuilderFinalizer<'a, File> for Builder2<FileSource<'a>> {
     }
 }
 
-impl<'a> Builder2<ReadSource<'a>> {}
+impl<'a> Builder<ReadSource<'a>> {}
 
-impl<'a> BuilderFinalizer<'a, &'a mut dyn Read> for Builder2<ReadSource<'a>> {
+impl<'a> BuilderFinalizer<'a, &'a mut dyn Read> for Builder<ReadSource<'a>> {
     fn iter(self) -> Result<Option<Iter<&'a mut dyn Read>>> {
         Ok(Some(Iter::new(self.source.reader)))
     }
 
     fn load(self) -> Result<Option<PathBuf>> {
         let iter = Iter::new(self.source.reader);
-        if self.overryde {
+        if self.override_duplicates {
             iter.load_override()?;
         } else {
             iter.load()?;
@@ -109,58 +110,61 @@ impl<'a> BuilderFinalizer<'a, &'a mut dyn Read> for Builder2<ReadSource<'a>> {
     }
 }
 
-impl<S> Builder2<S> {
-    pub fn overryde(mut self) -> Self {
-        self.overryde = true;
+impl<S> Builder<S> {
+    pub fn override_duplicates(mut self) -> Self {
+        self.override_duplicates = true;
         self
     }
 }
 
-pub fn dotenv<'a>() -> Builder2<FileSource<'a>> {
-    Builder2 {
+pub fn dotenv<'a>() -> Builder<FileSource<'a>> {
+    Builder {
         source: FileSource {
             source: FileSourceType::Default,
-            optional: false,
+
+            ..Default::default()
         },
 
         ..Default::default()
     }
 }
 
-pub fn from_filename<'a, P>(filename: &'a P) -> Builder2<FileSource<'a>>
+pub fn from_filename<'a, P>(filename: &'a P) -> Builder<FileSource<'a>>
 where
     P: AsRef<Path> + ?Sized,
 {
-    Builder2 {
+    Builder {
         source: FileSource {
             source: FileSourceType::Filename(filename.as_ref()),
-            optional: false,
+
+            ..Default::default()
         },
 
         ..Default::default()
     }
 }
 
-pub fn from_path<'a, P>(path: &'a P) -> Builder2<FileSource<'a>>
+pub fn from_path<'a, P>(path: &'a P) -> Builder<FileSource<'a>>
 where
     P: AsRef<Path> + ?Sized,
 {
-    Builder2 {
+    Builder {
         source: FileSource {
             source: FileSourceType::Path(path.as_ref()),
-            optional: false,
+
+            ..Default::default()
         },
 
         ..Default::default()
     }
 }
 
-pub fn from_read<'a, R>(reader: &'a mut R) -> Builder2<ReadSource<'a>>
+pub fn from_read<'a, R>(reader: &'a mut R) -> Builder<ReadSource<'a>>
 where
     R: Read,
 {
-    Builder2 {
+    Builder {
         source: ReadSource { reader },
-        overryde: false,
+        override_duplicates: false,
     }
 }

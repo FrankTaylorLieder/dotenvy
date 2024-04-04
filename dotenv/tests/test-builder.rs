@@ -166,10 +166,15 @@ fn check_normal_iter(loader: InjectIter) -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_load_builder_default() -> Result<(), Box<dyn Error>> {
     check_missing_fails_load(|_| builder::dotenv().load())?;
-    check_missing_optional_load(|_| builder::dotenv().optional().load())?;
+    check_missing_optional_load(|_| builder::dotenv().allow_missing().load())?;
     check_normal_load(|_| builder::dotenv().load())?;
-    check_override_load(|_| builder::dotenv().overryde().load())?;
-    check_override_load(|_| builder::dotenv().optional().overryde().load())?;
+    check_override_load(|_| builder::dotenv().override_duplicates().load())?;
+    check_override_load(|_| {
+        builder::dotenv()
+            .allow_missing()
+            .override_duplicates()
+            .load()
+    })?;
 
     Ok(())
 }
@@ -178,9 +183,9 @@ fn test_load_builder_default() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_load_builder_filename() -> Result<(), Box<dyn Error>> {
     check_missing_fails_load(|_| builder::from_filename(".env").load())?;
-    check_missing_optional_load(|_| builder::from_filename(".env").optional().load())?;
+    check_missing_optional_load(|_| builder::from_filename(".env").allow_missing().load())?;
     check_normal_load(|_| builder::from_filename(".env").load())?;
-    check_override_load(|_| builder::from_filename(".env").overryde().load())?;
+    check_override_load(|_| builder::from_filename(".env").override_duplicates().load())?;
 
     Ok(())
 }
@@ -189,9 +194,9 @@ fn test_load_builder_filename() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_load_builder_path() -> Result<(), Box<dyn Error>> {
     check_missing_fails_load(|p| builder::from_path(p).load())?;
-    check_missing_optional_load(|p| builder::from_path(p).optional().load())?;
+    check_missing_optional_load(|p| builder::from_path(p).allow_missing().load())?;
     check_normal_load(|p| builder::from_path(p).load())?;
-    check_override_load(|p| builder::from_path(p).overryde().load())?;
+    check_override_load(|p| builder::from_path(p).override_duplicates().load())?;
 
     Ok(())
 }
@@ -204,7 +209,7 @@ fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
     })?;
     check_override_load(|p| {
         builder::from_read(&mut File::open(p).expect("Provided path is missing"))
-            .overryde()
+            .override_duplicates()
             .load()
     })?;
 
@@ -215,7 +220,7 @@ fn test_load_builder_read() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_iter_builder_default() -> Result<(), Box<dyn Error>> {
     check_missing_fails_iter(|_| builder::dotenv().iter())?;
-    check_missing_optional_iter(|_| builder::dotenv().optional().iter())?;
+    check_missing_optional_iter(|_| builder::dotenv().allow_missing().iter())?;
     check_normal_iter(|_| builder::dotenv().iter())?;
     // Note: There is no override test as this is a function of the loader.
 
@@ -226,7 +231,7 @@ fn test_iter_builder_default() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_iter_builder_filename() -> Result<(), Box<dyn Error>> {
     check_missing_fails_iter(|_| builder::from_filename(".env").iter())?;
-    check_missing_optional_iter(|_| builder::from_filename(".env").optional().iter())?;
+    check_missing_optional_iter(|_| builder::from_filename(".env").allow_missing().iter())?;
     check_normal_iter(|_| builder::from_filename(".env").iter())?;
     // Note: There is no override test as this is a function of the loader.
 
@@ -237,7 +242,7 @@ fn test_iter_builder_filename() -> Result<(), Box<dyn Error>> {
 #[serial]
 fn test_iter_builder_path() -> Result<(), Box<dyn Error>> {
     check_missing_fails_iter(|p| builder::from_path(p).iter())?;
-    check_missing_optional_iter(|p| builder::from_path(p).optional().iter())?;
+    check_missing_optional_iter(|p| builder::from_path(p).allow_missing().iter())?;
     check_normal_iter(|p| builder::from_path(p).iter())?;
     // Note: There is no override test as this is a function of the loader.
 
