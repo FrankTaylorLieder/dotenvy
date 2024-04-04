@@ -6,7 +6,6 @@ use std::mem::replace;
 use std::path::{Path, PathBuf};
 
 use crate::errors::*;
-use crate::from_filename;
 use crate::iter;
 use crate::Finder;
 use crate::Iter;
@@ -23,7 +22,7 @@ enum FileSourceType<'a> {
 pub struct FileSource<'a>(FileSourceType<'a>);
 pub struct ReadSource<'a>(&'a mut dyn Read);
 
-trait DotenvIter<'a, I> {
+trait DotenvFinalizer<'a, I> {
     fn load(self) -> Result<Option<PathBuf>>;
     fn iter(self) -> Result<Option<Iter<I>>>;
 }
@@ -36,6 +35,11 @@ pub struct DotenvBuilder<S> {
 }
 
 impl<'a> DotenvBuilder<FileSource<'a>> {
+    pub fn optional(mut self) -> Self {
+        self.optional = true;
+        self
+    }
+
     fn find_iter(&mut self) -> Result<(Option<PathBuf>, Option<Iter<File>>)> {
         let find_result = match self.source.0 {
             FileSourceType::Default => Finder::new().find(),
@@ -64,7 +68,7 @@ impl<'a> DotenvBuilder<FileSource<'a>> {
     }
 }
 
-impl<'a> DotenvIter<'a, File> for DotenvBuilder<FileSource<'a>> {
+impl<'a> DotenvFinalizer<'a, File> for DotenvBuilder<FileSource<'a>> {
     fn load(mut self) -> Result<Option<PathBuf>> {
         let (pb, iter) = self.find_iter()?;
 
@@ -88,7 +92,7 @@ impl<'a> DotenvIter<'a, File> for DotenvBuilder<FileSource<'a>> {
 
 impl<'a> DotenvBuilder<ReadSource<'a>> {}
 
-impl<'a> DotenvIter<'a, &'a mut dyn Read> for DotenvBuilder<ReadSource<'a>> {
+impl<'a> DotenvFinalizer<'a, &'a mut dyn Read> for DotenvBuilder<ReadSource<'a>> {
     fn iter(self) -> Result<Option<Iter<&'a mut dyn Read>>> {
         Ok(Some(Iter::new(self.source.0)))
     }
@@ -106,13 +110,49 @@ impl<'a> DotenvIter<'a, &'a mut dyn Read> for DotenvBuilder<ReadSource<'a>> {
 }
 
 impl<S> DotenvBuilder<S> {
-    pub fn optional(mut self) -> Self {
-        self.optional = true;
-        self
-    }
-
     pub fn overryde(mut self) -> Self {
         self.overryde = true;
         self
+    }
+}
+
+pub fn dotenv<'a>() -> DotenvBuilder<FileSource<'a>> {
+    DotenvBuilder {
+        source: FileSource(FileSourceType::Default),
+
+        ..Default::default()
+    }
+}
+
+pub fn from_filename<'a, P>(filename: &'a P) -> DotenvBuilder<FileSource<'a>>
+where
+    P: AsRef<Path>,
+{
+    DotenvBuilder {
+        source: FileSource(FileSourceType::Filename(filename.as_ref())),
+
+        ..Default::default()
+    }
+}
+
+pub fn from_path<'a, P>(path: &'a P) -> DotenvBuilder<FileSource<'a>>
+where
+    P: AsRef<Path>,
+{
+    DotenvBuilder {
+        source: FileSource(FileSourceType::Path(path.as_ref())),
+
+        ..Default::default()
+    }
+}
+
+pub fn from_read<'a, R>(reader: &'a mut R) -> DotenvBuilder<ReadSource<'a>>
+where
+    R: Read,
+{
+    DotenvBuilder {
+        source: ReadSource(reader),
+        optional: false,
+        overryde: false,
     }
 }
